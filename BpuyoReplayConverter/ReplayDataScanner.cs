@@ -39,18 +39,18 @@ namespace BpuyoReplayConverter
 
             replay_stream.Read(skip_buffer, 0, kFirstSkipSize);
             replay_stream.Read(result_buffer, 0, kResultSize);
-            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString();
+            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + '\n';
             replay_stream.Read(result_buffer, 0, kResultSize);
-            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString();
+            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + '\n';
             replay_stream.Read(skip_buffer, 0, kSecondSkipSize);
             replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             first_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
             first_player_name = first_player_name.TrimEnd('\0');
-            puyofu_text += first_player_name;
+            puyofu_text += first_player_name + '\n';
             int second_size = replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             second_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
             second_player_name = second_player_name.TrimEnd('\0');
-            puyofu_text += second_player_name;
+            puyofu_text += second_player_name + '\n';
 
         }
 
