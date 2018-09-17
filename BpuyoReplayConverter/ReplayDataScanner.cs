@@ -8,7 +8,6 @@ namespace BpuyoReplayConverter
 {
     public class ReplayDataScanner
     {
-        enum Mode : int { CHAIN = 4, PUT = 5, WAIT };
 
         private String puyofu_text;
         private String first_player_name;
@@ -39,18 +38,18 @@ namespace BpuyoReplayConverter
 
             replay_stream.Read(skip_buffer, 0, kFirstSkipSize);
             replay_stream.Read(result_buffer, 0, kResultSize);
-            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + '\n';
+            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + "\r\n";
             replay_stream.Read(result_buffer, 0, kResultSize);
-            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + '\n';
+            puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + "\r\n";
             replay_stream.Read(skip_buffer, 0, kSecondSkipSize);
             replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             first_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
             first_player_name = first_player_name.TrimEnd('\0');
-            puyofu_text += first_player_name + '\n';
+            puyofu_text += first_player_name + "\r\n";
             int second_size = replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             second_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
             second_player_name = second_player_name.TrimEnd('\0');
-            puyofu_text += second_player_name + '\n';
+            puyofu_text += second_player_name + "\r\n";
 
         }
 
@@ -87,52 +86,34 @@ namespace BpuyoReplayConverter
         }
 
         // 一手ごとに記録
-        private void ConvertDecompressedBlockDataToRecord(byte[] decompressed_block_data, RecordGame record_game)
+        private void ConvertDecompressedBlockDataToRecord(in byte[] decompressed_block_data, RecordGame record_game)
         {
-            for (int flame_i = 0; flame_i < BpuyoParameter.BlockFrameSize; flame_i++)
+            for (int frame_i = 0; frame_i < BpuyoParameter.BlockFrameSize; frame_i++)
             {
-                int player_i;
-                if (target_player.IsFirstPlayer()) player_i = 0;
-                else player_i = 1;
+                int player_i = target_player.IsFirstPlayer() ? 0 : 1;
 
-                int base_index = flame_i * 2538 + player_i * 1269;
+                FrameStream frame_stream = new FrameStream(decompressed_block_data, frame_i, player_i);
 
-                int match_index = base_index + 1225;
-                int hand_index = base_index + 1157;
-                int current_parent_index = base_index + 1113;
-                int current_child_index = base_index + 1114;
-                int next_parent_index = base_index + 1115;
-                int next_child_index = base_index + 1116;
-                int x_index = base_index + 1123;
-                int rotate_index = base_index + 1126;
-
-                int match_count = BitConverter.ToInt16(decompressed_block_data, match_index);
-                int hand_count = decompressed_block_data[hand_index];
-                if(record_game.match.Count < match_count)
+                if (record_game.match.Count < frame_stream.match_count)
                 {
                     record_game.match.Add(new List<RecordOnePut>());
                     record_game.match.Last().Add(new RecordOnePut());
                 }
-                if(record_game.match.Last().Count < hand_count)
+                if(record_game.match.Last().Count < frame_stream.hand_count)
                 {
                     record_game.match.Last().Add(new RecordOnePut());
                 }
                 RecordOnePut record = record_game.match.Last().Last();
-                Mode mode_player = (Mode)decompressed_block_data[base_index];
+                // DEBUG用
+//                puyofu_text += "flame: " + frame_i.ToString() + ", MODE: " + frame_stream.mode.ToString() + ", HAND: " + frame_stream.hand_count.ToString();
+//                puyofu_text += "cur: " + frame_stream.current_puyos[0].ToString() + ' ' + frame_stream.current_puyos[1].ToString() + ", next: " + frame_stream.next_puyos[0].ToString() + ' ' + frame_stream.next_puyos[1].ToString() + ", x, r: " + frame_stream.x.ToString() + " " + frame_stream.rotate.ToString() + "\r\n";
 
-                if(mode_player == Mode.CHAIN){
-
-                }else if (mode_player == Mode.PUT)
+                if (frame_stream.mode == Mode.WAIT)
                 {
-                    if (record.IsSetRecord()) continue;
-                    record.hand_count = hand_count;
-                    record.current_kumipuyo[0] = decompressed_block_data[current_parent_index];
-                    record.current_kumipuyo[1] = decompressed_block_data[current_child_index];
-                    record.next_kumipuyo[0] = decompressed_block_data[next_parent_index];
-                    record.next_kumipuyo[1] = decompressed_block_data[next_child_index];
-                    record.put_pattern.Set(decompressed_block_data[x_index], decompressed_block_data[rotate_index]);
-                }
+                    if (record.IsSetRecord() || frame_stream.Invalid()) continue;
 
+                    record.SetExcludeField(frame_stream.hand_count, frame_stream.current_puyos, frame_stream.next_puyos, frame_stream.x, frame_stream.rotate);
+                }
             }
         }
 
@@ -146,15 +127,14 @@ namespace BpuyoReplayConverter
                 if (replay_block.invalid_memory == true) continue;
 
                 byte[] unzip = DecompressReplayBlock(replay_block);
-
+                
                 ConvertDecompressedBlockDataToRecord(unzip, record_game);
             }
 
             for(int match_i = 0; match_i < record_game.match.Count; match_i++)
             {
-                puyofu_text += "match: " + match_i.ToString() + "\n";
-                //                for(int hand_i = 0; hand_i < record_game.match[match_i].Count; hand_i++)
-                foreach(RecordOnePut rec in record_game.match[match_i])
+                puyofu_text += "match: " + (match_i + 1).ToString() + "\r\n";
+                foreach (RecordOnePut rec in record_game.match[match_i])
                 {
                     puyofu_text += rec.ToString();
                 }
