@@ -10,7 +10,7 @@ namespace BpuyoReplayConverter
     // 連鎖発生時: MOVING > [BEFORE_PUT(1) > CHAIN](連鎖回数分) > PUT_ANIMATION(1) > WAIT ( > OJAMA )
     enum Mode : int
     {
-        MOVING = 1, BEFORE_PUT = 3, CHAIN = 4, PUT_ANIMATION = 5, WAIT, OJAMA = 7,
+        MOVING = 1, BEFOREPUT_AND_JUDGE = 3, CHAIN = 4, PUT_ANIMATION = 5, WAIT, OJAMA = 7,
         RESULT_LOSE = 8, RESULT_WIN = 9, SELECT = 10, OPENING = 11
     };
 

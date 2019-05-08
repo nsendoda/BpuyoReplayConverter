@@ -1,16 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using Tommy;
+
 namespace BpuyoReplayConverter
 {
     class ReplayFolderProcesser
     {
-        static public void StartProcess(String input_folder_path, RichTextBox result_textbox, String input_player_name)
+        // フォルダに存在するprdファイルごとにデータを抜き出して出力を行う。
+        // @args foder_path..フォルダパス
+        // @args player_name..データを取り出すプレイヤー名
+        // @args textbox..処理中表示用
+        static public void StartProcess(String input_folder_path, RichTextBox result_textbox, String input_player_name, bool onlywin)
         {
             String output_folder_path = System.IO.Path.Combine(System.Environment.CurrentDirectory, input_player_name);
             // 実行フォルダに入力したプレイヤー名のフォルダが存在していないならば、作る
@@ -28,29 +35,34 @@ namespace BpuyoReplayConverter
 
             int file_max_count = files.Length;
             int file_count = files.Length;
-            int file_i = 0;
+            int file_i_for_display = 0;
             foreach (System.IO.FileInfo f in files)
             {
-                file_i++;
+                file_i_for_display++;
+
+                // 試合
+                RecordGame record_game = new RecordGame();
+
                 // ぷよ譜を取得
-                // 該当プレイヤーが対戦にいない場合空文字列が返ってくる
-                String Output = replay_data_sacanner.ReadAndTraceData(f.FullName, input_player_name);
-                if (Output == String.Empty)
+                bool ok = replay_data_sacanner.ReadAndTraceData(f.FullName, input_player_name, record_game);
+                // 該当プレイヤーが対戦にいない場合
+                if (! ok)
                 {
                     file_count--;
                     continue;
                 }
 
+                // ファイル名生成
                 String output_file_path
-                    = System.IO.Path.Combine(output_folder_path, f.Name.Split('.').First()) + ".txt";
+                    = System.IO.Path.Combine(output_folder_path, f.Name.Split('.').First()) + ".toml";
+
+                TomlTable toml = RecordTomlHelper.Toml(record_game, onlywin);
 
                 // ファイルに書き込み
-                using (System.IO.StreamWriter sw = new System.IO.StreamWriter(output_file_path, false,
-                    System.Text.Encoding.Unicode))
-                {
-                    sw.Write(Output);
-                }
-                result_textbox.Text = "処理中..(" + file_i.ToString() + "/" + file_max_count.ToString() + ")";
+                using (StreamWriter writer = new StreamWriter(File.OpenWrite(output_file_path)))
+                    toml.ToTomlString(writer);
+                // 処理中プロセステキスト表示
+                result_textbox.Text = "処理中..(" + file_i_for_display.ToString() + "/" + file_max_count.ToString() + ")";
             }
             result_textbox.Text = "処理が終了しました。(" + file_count.ToString() + "/" + file_max_count.ToString() + "prdファイルが有効)";
         }

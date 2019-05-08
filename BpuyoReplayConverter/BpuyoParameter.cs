@@ -15,6 +15,5 @@ namespace BpuyoReplayConverter
         public const int BlockFrameSize = 120;
         public const int PlayerNumber = 2;
 
-
     }
 }

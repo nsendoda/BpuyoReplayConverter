@@ -13,9 +13,9 @@ using System.IO;
 namespace BpuyoReplayConverter
 {
 
-    public partial class Form1 : Form
+    public partial class ApplicationForm : Form
     {
-        public Form1()
+        public ApplicationForm()
         {
             InitializeComponent();
         }
@@ -30,7 +30,7 @@ namespace BpuyoReplayConverter
         private void OnClickStart(Object sender, EventArgs e)
         {
             //OKボタンがクリックされたとき、選択されたファイルを読み取り専用で開く
-            ReplayFolderProcesser.StartProcess(FolderPathText.Text, richTextBox1, InputPlayerNameText.Text);
+            ReplayFolderProcesser.StartProcess(FolderPathText.Text, richTextBox1, InputPlayerNameText.Text, checkBox1.Checked);
         }      
 
         private void OnClickFolderSet(Object sender, EventArgs e)
@@ -55,6 +55,16 @@ namespace BpuyoReplayConverter
         }
 
         private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void FolderPathText_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
 
         }

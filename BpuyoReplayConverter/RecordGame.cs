@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace BpuyoReplayConverter
 {
+    // RecordGame.match[試合番号][手数]
     class RecordGame
     {
-        public List<List<RecordOnePut>> match = new List<List<RecordOnePut>>();
-
+        public List<RecordMatch> matches = new List<RecordMatch>();
     }
 }

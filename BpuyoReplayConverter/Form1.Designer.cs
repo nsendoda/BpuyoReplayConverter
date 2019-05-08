@@ -1,6 +1,6 @@
 ﻿namespace BpuyoReplayConverter
 {
-    partial class Form1
+    partial class ApplicationForm
     {
         /// <summary>
         /// 必要なデザイナー変数です。
@@ -34,46 +34,49 @@
             this.FolderPathText = new System.Windows.Forms.RichTextBox();
             this.FolderSetButton = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
-            this.label2 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
+            this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(136, 179);
+            this.button1.Location = new System.Drawing.Point(136, 238);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(269, 129);
+            this.button1.Size = new System.Drawing.Size(269, 70);
             this.button1.TabIndex = 0;
             this.button1.Text = "出力開始";
             this.button1.UseVisualStyleBackColor = true;
             // 
             // richTextBox1
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(117, 327);
+            this.richTextBox1.Location = new System.Drawing.Point(12, 327);
             this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(382, 30);
+            this.richTextBox1.Size = new System.Drawing.Size(514, 30);
             this.richTextBox1.TabIndex = 1;
             this.richTextBox1.Text = "ここに出力経過が表示されます";
             // 
             // InputPlayerNameText
             // 
-            this.InputPlayerNameText.Location = new System.Drawing.Point(273, 103);
+            this.InputPlayerNameText.Location = new System.Drawing.Point(12, 136);
+            this.InputPlayerNameText.MaxLength = 50;
             this.InputPlayerNameText.Name = "InputPlayerNameText";
-            this.InputPlayerNameText.Size = new System.Drawing.Size(247, 28);
+            this.InputPlayerNameText.Size = new System.Drawing.Size(514, 28);
             this.InputPlayerNameText.TabIndex = 2;
-            this.InputPlayerNameText.Text = "NONAME";
+            this.InputPlayerNameText.Text = "UENNI";
             // 
             // FolderPathText
             // 
-            this.FolderPathText.Location = new System.Drawing.Point(117, 65);
+            this.FolderPathText.Location = new System.Drawing.Point(12, 65);
+            this.FolderPathText.MaxLength = 500;
             this.FolderPathText.Name = "FolderPathText";
-            this.FolderPathText.Size = new System.Drawing.Size(403, 32);
+            this.FolderPathText.Size = new System.Drawing.Size(514, 32);
             this.FolderPathText.TabIndex = 3;
-            this.FolderPathText.Text = "";
+            this.FolderPathText.Text = "G:\\GoogleDrive\\game\\puzzle\\Bpuyo\\rec\\UENNI";
+            this.FolderPathText.TextChanged += new System.EventHandler(this.FolderPathText_TextChanged);
             // 
             // FolderSetButton
             // 
-            this.FolderSetButton.Location = new System.Drawing.Point(12, 65);
+            this.FolderSetButton.Location = new System.Drawing.Point(12, 103);
             this.FolderSetButton.Name = "FolderSetButton";
             this.FolderSetButton.Size = new System.Drawing.Size(88, 23);
             this.FolderSetButton.TabIndex = 4;
@@ -83,20 +86,11 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(10, 111);
+            this.label1.Location = new System.Drawing.Point(10, 167);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(208, 12);
             this.label1.TabIndex = 5;
             this.label1.Text = "抽出したいプレイヤー名を入力してください。";
-            // 
-            // label2
-            // 
-            this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(10, 337);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(53, 12);
-            this.label2.TabIndex = 6;
-            this.label2.Text = "出力結果";
             // 
             // label3
             // 
@@ -109,13 +103,24 @@
             this.label3.Text = "Bぷよのリプレイファイル(prd)をぷよ譜へ変換機";
             this.label3.Click += new System.EventHandler(this.label3_Click);
             // 
+            // checkBox1
+            // 
+            this.checkBox1.AutoSize = true;
+            this.checkBox1.Location = new System.Drawing.Point(12, 202);
+            this.checkBox1.Name = "checkBox1";
+            this.checkBox1.Size = new System.Drawing.Size(135, 16);
+            this.checkBox1.TabIndex = 8;
+            this.checkBox1.Text = "勝利した試合のみ抽出";
+            this.checkBox1.UseVisualStyleBackColor = true;
+            this.checkBox1.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(532, 369);
+            this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.FolderSetButton);
             this.Controls.Add(this.FolderPathText);
@@ -138,8 +143,8 @@
         private System.Windows.Forms.RichTextBox FolderPathText;
         private System.Windows.Forms.Button FolderSetButton;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.CheckBox checkBox1;
     }
 }
 

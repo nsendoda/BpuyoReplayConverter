@@ -42,5 +42,6 @@ namespace BpuyoReplayConverter
                 index = x_ * 4 + rotate_ - 1;
             }
         }
+
     }
 }

@@ -6,13 +6,46 @@ using System.Threading.Tasks;
 
 namespace BpuyoReplayConverter
 {
-    public class ReplayDataScanner
+    // 渡されたリプレイファイルパスとプレイヤー名から
+    // 各試合の各手数におけるデータを解析し、文字列として返す
+    class ReplayDataScanner
     {
 
         private String puyofu_text;
         private String first_player_name;
         private String second_player_name;
         private PlayerState target_player; // 0なら1P, 1なら2P
+
+
+        // 調査対象のプレイヤーのぷよ譜を返す
+        // @note 調査対象のプレイヤーが対戦に存在しない場合は空文字列を返す
+        public bool ReadAndTraceData(String replay_file_path, String input_player_name, RecordGame record_game)
+        {
+            Init(); // 返す文字列を初期化, 調査するプレイヤー名のset
+
+            using (
+                System.IO.FileStream replay_stream = new System.IO.FileStream(replay_file_path, System.IO.FileMode.Open,
+                    System.IO.FileAccess.Read))
+            {
+                // 記録を行うプレイヤーが1Pか2Pかに存在するか調べる
+                // 存在しなければ空文字列を返す
+                ReadAndSkipPrdFileHeader(replay_stream);
+                if (first_player_name == input_player_name)
+                {
+                    target_player.SetFirstPlayer();
+                }
+                else if (second_player_name == input_player_name)
+                {
+                    target_player.SetSecondPlayer();
+                }
+                else
+                {
+                    return false;
+                }
+                ReadAndSkipPrdContents(replay_stream, record_game);
+            }
+            return true;
+        }
 
         private void Init()
         {
@@ -42,15 +75,44 @@ namespace BpuyoReplayConverter
             replay_stream.Read(result_buffer, 0, kResultSize);
             puyofu_text += BitConverter.ToInt16(result_buffer, 0).ToString() + "\r\n";
             replay_stream.Read(skip_buffer, 0, kSecondSkipSize);
+
+            // 名前の読み取り
             replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             first_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
-            first_player_name = first_player_name.TrimEnd('\0');
-            puyofu_text += first_player_name + "\r\n";
-            int second_size = replay_stream.Read(name_buffer, 0, kPlayerNameSize);
+            replay_stream.Read(name_buffer, 0, kPlayerNameSize);
             second_player_name = System.Text.Encoding.UTF8.GetString(name_buffer);
-            second_player_name = second_player_name.TrimEnd('\0');
-            puyofu_text += second_player_name + "\r\n";
 
+            //  制御文字を取り除く
+            first_player_name = TrimControl(first_player_name);
+            second_player_name = TrimControl(second_player_name);
+        }
+
+        private String TrimControl(String s)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (char.IsControl(s[i]))
+                {
+                    return s.Substring(0, i);
+                }
+            }
+            return s;
+        }
+
+        // ヘッダ以降のデータを読んでその内容をrecord_gameに書き込む
+        private void ReadAndSkipPrdContents(System.IO.FileStream replay_stream, RecordGame record_game)
+        {
+            ReplayBlockData replay_block = new ReplayBlockData();
+            while (replay_stream.Length - replay_stream.Position > 0)
+            {
+                ReadAndSkipPrd120BlockHeader(replay_stream, replay_block);
+
+                if (replay_block.invalid_memory == true) continue;
+
+                byte[] unzip = DecompressReplayBlock(replay_block);
+
+                ConvertDecompressedBlockDataToRecord(unzip, record_game);
+            }
         }
 
         // 120フレームブロックのヘッダを読んで飛ばす
@@ -70,6 +132,73 @@ namespace BpuyoReplayConverter
             replay_stream.Read(replay_block.data, 0, (int)replay_block.size - 2);
         }
 
+        // decompressed_block_dataに入ってる各試合の一手ごとに記録を行う
+        // @args record_game これに各試合ごとにおける各手数での情報を格納する
+        private void ConvertDecompressedBlockDataToRecord(in byte[] decompressed_block_data, RecordGame record_game)
+        {
+            for (int frame_i = 0; frame_i < BpuyoParameter.BlockFrameSize; frame_i++)
+            {
+                int player_i = target_player.IsFirstPlayer() ? 0 : 1;
+
+                FrameStream frame_stream = new FrameStream(decompressed_block_data, frame_i, player_i);
+
+                // 取得した手数が不正ならcontinue
+                if(frame_stream.match_count <= 0)
+                {
+                    continue;
+                }
+
+                // 新しい試合になったら更新
+                if (record_game.matches.Count < frame_stream.match_count)
+                {
+                    record_game.matches.Add(new RecordMatch());
+                }
+
+                if (frame_stream.mode == Mode.MOVING)
+                {
+                    // 新しい手だったら更新
+                    if (record_game.matches.Last().puts.Count < frame_stream.hand_count)
+                    {
+                        if (record_game.matches.Last().puts.Count > 0)
+                        {
+                            RecordOnePut pre_put = record_game.matches.Last().puts.Last();
+                            record_game.matches.Last().puts.Add(new RecordOnePut());
+                            record_game.matches.Last().puts.Last().SetPreMyField(pre_put);
+                        }
+                        else
+                        {
+                            record_game.matches.Last().puts.Add(new RecordOnePut());
+                        }
+                    }
+
+                    // 1手目が置かれるまでcontinue
+                    if (record_game.matches.Last().puts.Count == 0) continue;
+
+
+                    if (frame_stream.Invalid()) continue;
+
+                    record_game.matches.Last().puts.Last().SetModeBeforePut(frame_stream);
+                    record_game.matches.Last().puts.Last().SetModeWait(frame_stream);
+
+                }
+                else if(frame_stream.mode == Mode.RESULT_WIN)
+                {
+                    record_game.matches.Last().SetWon();
+                }
+                else if(frame_stream.mode == Mode.RESULT_LOSE)
+                {
+                    record_game.matches.Last().SetLost();
+                }
+            }
+        }
+
+
+        // フィールドを前にずらす
+        // これによって、与えられたフィールドに対してどこに置くかを示すデータセットに出来る
+        private void FieldShiftForward(ref RecordGame record_game)
+        {
+
+        }
         // リプレイブロックを解凍したものを返す
         private byte[] DecompressReplayBlock(ReplayBlockData replay_block)
         {
@@ -83,93 +212,6 @@ namespace BpuyoReplayConverter
             memory_stream.Close();
             deflate_stream.Close();
             return uncompressed_data;
-        }
-
-        // 一手ごとに記録
-        private void ConvertDecompressedBlockDataToRecord(in byte[] decompressed_block_data, RecordGame record_game)
-        {
-            for (int frame_i = 0; frame_i < BpuyoParameter.BlockFrameSize; frame_i++)
-            {
-                int player_i = target_player.IsFirstPlayer() ? 0 : 1;
-
-                FrameStream frame_stream = new FrameStream(decompressed_block_data, frame_i, player_i);
-
-                if (record_game.match.Count < frame_stream.match_count)
-                {
-                    record_game.match.Add(new List<RecordOnePut>());
-                    record_game.match.Last().Add(new RecordOnePut());
-                }
-                if(record_game.match.Last().Count < frame_stream.hand_count)
-                {
-                    record_game.match.Last().Add(new RecordOnePut());
-                }
-                RecordOnePut record = record_game.match.Last().Last();
-                // DEBUG用
-//                puyofu_text += "flame: " + frame_i.ToString() + ", MODE: " + frame_stream.mode.ToString() + ", HAND: " + frame_stream.hand_count.ToString();
-//                puyofu_text += "cur: " + frame_stream.current_puyos[0].ToString() + ' ' + frame_stream.current_puyos[1].ToString() + ", next: " + frame_stream.next_puyos[0].ToString() + ' ' + frame_stream.next_puyos[1].ToString() + ", x, r: " + frame_stream.x.ToString() + " " + frame_stream.rotate.ToString() + "\r\n";
-
-                if (frame_stream.mode == Mode.WAIT)
-                {
-                    if (record.IsSetRecord() || frame_stream.Invalid()) continue;
-
-                    record.SetExcludeField(frame_stream.hand_count, frame_stream.current_puyos, frame_stream.next_puyos, frame_stream.x, frame_stream.rotate);
-                }
-            }
-        }
-
-        private void ReadAndSkipPrdContents(System.IO.FileStream replay_stream, RecordGame record_game)
-        {
-            ReplayBlockData replay_block = new ReplayBlockData();
-            while(replay_stream.Length - replay_stream.Position > 0)
-            {
-                ReadAndSkipPrd120BlockHeader(replay_stream, replay_block);
-
-                if (replay_block.invalid_memory == true) continue;
-
-                byte[] unzip = DecompressReplayBlock(replay_block);
-                
-                ConvertDecompressedBlockDataToRecord(unzip, record_game);
-            }
-
-            for(int match_i = 0; match_i < record_game.match.Count; match_i++)
-            {
-                puyofu_text += "match: " + (match_i + 1).ToString() + "\r\n";
-                foreach (RecordOnePut rec in record_game.match[match_i])
-                {
-                    puyofu_text += rec.ToString();
-                }
-            }
-
-        }
-
-        // 調査対象のプレイヤーのぷよ譜を返す
-        // @note 調査対象のプレイヤーが対戦に存在しない場合は空文字列を返す
-        public String ReadAndTraceData(String replay_file_path, String input_player_name)
-        {
-            Init(); // 返す文字列を初期化, 調査するプレイヤー名のset
-            // 最低限の試合数と手数
-            // @suspicion vectorみたいに増やせるの？
-            RecordGame record_game = new RecordGame();
-
-            using (
-                System.IO.FileStream replay_stream = new System.IO.FileStream(replay_file_path, System.IO.FileMode.Open,
-                    System.IO.FileAccess.Read))
-            {
-                ReadAndSkipPrdFileHeader(replay_stream);
-                if (first_player_name == input_player_name)
-                {
-                    target_player.SetFirstPlayer();
-                }else if (second_player_name == input_player_name)
-                {
-                    target_player.SetSecondPlayer();
-                }
-                else
-                {
-                    return String.Empty;
-                }
-                ReadAndSkipPrdContents(replay_stream, record_game);
-            }
-            return puyofu_text;
         }
     }
 }
